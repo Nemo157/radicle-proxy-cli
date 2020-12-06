@@ -10,5 +10,5 @@ mod app;
 
 #[fehler::throws]
 fn main() {
-    app::App::try_parse()?.run()?;
+    app::App::parse().run()?;
 }

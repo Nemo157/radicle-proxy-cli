@@ -4,6 +4,10 @@ use anyhow::Error;
 mod identities;
 
 #[derive(Debug, clap::Clap)]
+#[clap(name = "rad", about, version)]
+#[clap(global_setting(clap::AppSettings::ColoredHelp))]
+#[clap(global_setting(clap::AppSettings::DisableHelpSubcommand))]
+#[clap(global_setting(clap::AppSettings::GlobalVersion))]
 crate struct App {
     #[clap(long)]
     base_url: url::Url,
