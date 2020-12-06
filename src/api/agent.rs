@@ -1,4 +1,3 @@
-use anyhow::Context;
 use secrecy::{ExposeSecret, Secret};
 use std::fmt::Debug;
 use url::Url;
@@ -39,24 +38,41 @@ impl secrecy::DebugSecret for UreqAgent {
 
 impl Agent {
     #[fehler::throws(anyhow::Error)]
-    pub(super) fn new(base: Url, auth_token: Secret<String>) -> Self {
+    pub(super) fn new(base: Url) -> Self {
+        tracing::debug!(%base, "Initializing agent");
         let agent = ureq::agent();
         anyhow::ensure!(
             !base.cannot_be_a_base(),
             "Invalid base url, must be able to append components"
         );
-        let domain = base
-            .domain()
-            .context("Invalid base url, must contain a domain to attach cookie to")?
-            .to_owned();
-        agent.set_cookie(
-            ureq::Cookie::build("auth-token", auth_token.expose_secret().to_owned())
-                .domain(domain)
-                .path("/")
-                .finish(),
-        );
         let agent = Secret::new(UreqAgent(agent));
         Self { base, agent }
+    }
+
+    #[fehler::throws(crate::api::Error)]
+    pub(super) fn login(&self, passphrase: Secret<String>) {
+        #[derive(Debug, serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct LoginData {
+            #[serde(serialize_with = "serialize_passphrase")]
+            passphrase: Secret<String>,
+        }
+
+        fn serialize_passphrase<S>(
+            passphrase: &Secret<String>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            use serde::Serialize;
+            passphrase.expose_secret().serialize(serializer)
+        }
+
+        let crate::api::Nothing =
+            self.post(["v1", "keystore", "unseal"], LoginData { passphrase })?;
+        // The web server resets itself after login...
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     #[fehler::throws(crate::api::Error)]
@@ -83,6 +99,22 @@ impl Agent {
         } else {
             Some(response.check_error()?.into_json_deserialize()?)
         }
+    }
+
+    #[fehler::throws(crate::api::Error)]
+    pub(super) fn post<T: serde::de::DeserializeOwned>(
+        &self,
+        path: impl UrlComponents + Debug,
+        data: impl serde::Serialize + Debug,
+    ) -> T {
+        let url = path.append_to(self.base.clone());
+        tracing::debug!(%url, ?data, "post");
+        let response = self
+            .agent
+            .expose_secret()
+            .post(&url.to_string())
+            .send_json(ureq::serde_to_value(data)?);
+        response.check_error()?.into_json_deserialize()?
     }
 }
 

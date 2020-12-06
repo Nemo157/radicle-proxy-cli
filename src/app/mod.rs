@@ -10,10 +10,8 @@ mod identities;
 #[clap(global_setting(clap::AppSettings::DisableHelpSubcommand))]
 #[clap(global_setting(clap::AppSettings::GlobalVersion))]
 crate struct App {
-    #[clap(long)]
+    #[clap(long, default_value = "http://localhost:17246")]
     base_url: url::Url,
-    #[clap(long)]
-    auth_token: Secret<String>,
     #[clap(subcommand)]
     cmd: Cmd,
 }
@@ -32,9 +30,14 @@ impl App {
     #[fehler::throws]
     crate fn run(self) {
         tracing::trace!(?self, "running app");
+        tracing::debug!("requesting passphrase");
+        let passphrase = Secret::new(rpassword::read_password_from_tty(Some(
+            "Please enter radicle passphrase: ",
+        ))?);
         let context = Context {
-            api: Api::new(self.base_url, self.auth_token)?,
+            api: Api::new(self.base_url)?,
         };
+        context.api.login(passphrase)?;
         self.cmd.run(&context)?
     }
 }

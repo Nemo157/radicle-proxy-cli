@@ -14,6 +14,9 @@ crate enum Error {
     #[error("Internal error constructing url")]
     Url(#[from] url::ParseError),
 
+    #[error("Serializing data to send failed")]
+    SerializationFailure(#[from] serde_json::Error),
+
     #[error(transparent)]
     UnknownUreq(#[from] ureq::Error),
 
@@ -28,13 +31,31 @@ crate struct Api {
 
 impl Api {
     #[fehler::throws(anyhow::Error)]
-    crate fn new(base: Url, auth_token: Secret<String>) -> Self {
+    crate fn new(base: Url) -> Self {
         Self {
-            agent: Agent::new(base, auth_token)?,
+            agent: Agent::new(base)?,
         }
+    }
+
+    #[fehler::throws(crate::api::Error)]
+    crate fn login(&self, passphrase: Secret<String>) {
+        self.agent.login(passphrase)?
     }
 
     crate fn identities(&self) -> identities::Api<'_> {
         identities::Api::new(&self.agent)
+    }
+}
+
+/// For API requests that return no response data
+#[derive(Debug)]
+struct Nothing;
+
+impl<'de> serde::Deserialize<'de> for Nothing {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Nothing)
     }
 }
