@@ -16,3 +16,4 @@ fehler = { version = "1.0.0", default-features = false }
 serde = { version = "1.0.118", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.22", default-features = false }
 ureq = { version = "1.5.2", features = ["json", "cookies"], default-features = false }
+url = { version = "2.2.0", default-features = false }

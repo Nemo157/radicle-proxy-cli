@@ -26,7 +26,7 @@ impl Cmd {
     pub(super) fn run(self, context: &Context) {
         match self {
             Self::List => {
-                for identity in crate::api::identities::list(&context.agent)? {
+                for identity in context.api.identities().list()? {
                     println!(
                         "{} {}: {}",
                         identity.avatar_fallback.emoji, identity.metadata.handle, identity.urn

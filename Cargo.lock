@@ -351,6 +351,7 @@ dependencies = [
  "serde",
  "thiserror",
  "ureq",
+ "url",
 ]
 
 [[package]]

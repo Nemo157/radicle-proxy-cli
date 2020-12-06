@@ -1,4 +1,4 @@
-use crate::api::{ApiResponseExt, Error};
+use crate::api::Error;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,8 +22,17 @@ crate struct AvatarFallback {
     crate emoji: String,
 }
 
-#[fehler::throws]
-crate fn list(agent: &ureq::Agent) -> Vec<Identity> {
-    let response = agent.get("http://localhost:17246/v1/identities/").call();
-    response.check_error()?.into_json_deserialize()?
+crate struct Api<'a> {
+    agent: &'a crate::api::Agent,
+}
+
+impl<'a> Api<'a> {
+    pub(super) fn new(agent: &'a crate::api::Agent) -> Self {
+        Self { agent }
+    }
+
+    #[fehler::throws]
+    crate fn list(&self) -> Vec<Identity> {
+        self.agent.get("/v1/identities/")?
+    }
 }

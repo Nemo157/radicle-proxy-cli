@@ -1,9 +1,12 @@
+use crate::api::Api;
 use anyhow::Error;
 
 mod identities;
 
 #[derive(Debug, clap::Clap)]
 crate struct App {
+    #[clap(long)]
+    base_url: url::Url,
     #[clap(long)]
     auth_token: String,
     #[clap(subcommand)]
@@ -16,20 +19,15 @@ enum Cmd {
 }
 
 struct Context {
-    agent: ureq::Agent,
+    api: Api,
 }
 
 impl App {
     #[fehler::throws]
     crate fn run(self) {
-        let agent = ureq::agent();
-        agent.set_cookie(
-            ureq::Cookie::build("auth-token", self.auth_token)
-                .domain("localhost")
-                .path("/")
-                .finish(),
-        );
-        let context = Context { agent };
+        let context = Context {
+            api: Api::new(self.base_url, self.auth_token)?,
+        };
         self.cmd.run(&context)?
     }
 }

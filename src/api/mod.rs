@@ -1,9 +1,17 @@
+use url::Url;
+
+mod agent;
 crate mod identities;
+
+use agent::Agent;
 
 #[derive(Debug, thiserror::Error)]
 crate enum Error {
     #[error("API response {code}, {msg}")]
     Api { msg: String, code: u16 },
+
+    #[error("Internal error constructing url")]
+    Url(#[from] url::ParseError),
 
     #[error(transparent)]
     UnknownUreq(#[from] ureq::Error),
@@ -12,28 +20,20 @@ crate enum Error {
     UnknownIo(#[from] std::io::Error),
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct ErrorResponse {
-    message: String,
-    variant: String,
+#[derive(Debug)]
+crate struct Api {
+    agent: Agent,
 }
 
-trait ApiResponseExt: Sized {
-    #[fehler::throws]
-    fn check_error(self) -> Self;
-}
-
-impl ApiResponseExt for ureq::Response {
-    #[fehler::throws]
-    fn check_error(self) -> Self {
-        if self.error() {
-            if self.synthetic() {
-                fehler::throw!(self.into_synthetic_error().unwrap());
-            }
-            let code = self.status();
-            let ErrorResponse { message: msg, .. } = self.into_json_deserialize()?;
-            fehler::throw!(Error::Api { msg, code });
+impl Api {
+    #[fehler::throws(anyhow::Error)]
+    crate fn new(base: Url, auth_token: impl Into<String>) -> Self {
+        Self {
+            agent: Agent::new(base, auth_token.into())?,
         }
-        self
+    }
+
+    crate fn identities(&self) -> identities::Api<'_> {
+        identities::Api::new(&self.agent)
     }
 }
