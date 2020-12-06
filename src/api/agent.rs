@@ -11,7 +11,29 @@ struct ErrorResponse {
 #[derive(Debug)]
 pub(super) struct Agent {
     base: Url,
-    agent: ureq::Agent,
+    agent: Secret<UreqAgent>,
+}
+
+struct UreqAgent(ureq::Agent);
+
+impl core::ops::Deref for UreqAgent {
+    type Target = ureq::Agent;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl secrecy::Zeroize for UreqAgent {
+    fn zeroize(&mut self) {
+        // Not possible
+    }
+}
+
+impl secrecy::DebugSecret for UreqAgent {
+    fn debug_secret(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[REDACTED {}]", std::any::type_name::<ureq::Agent>())
+    }
 }
 
 impl Agent {
@@ -32,13 +54,14 @@ impl Agent {
                 .path("/")
                 .finish(),
         );
+        let agent = Secret::new(UreqAgent(agent));
         Self { base, agent }
     }
 
     #[fehler::throws(crate::api::Error)]
     pub(super) fn get<T: serde::de::DeserializeOwned>(&self, path: impl UrlComponents) -> T {
         let url = path.append_to(self.base.clone());
-        let response = self.agent.get(&url.to_string()).call();
+        let response = self.agent.expose_secret().get(&url.to_string()).call();
         response.check_error()?.into_json_deserialize()?
     }
 
@@ -48,7 +71,7 @@ impl Agent {
         path: impl UrlComponents,
     ) -> Option<T> {
         let url = path.append_to(self.base.clone());
-        let response = self.agent.get(&url.to_string()).call();
+        let response = self.agent.expose_secret().get(&url.to_string()).call();
         if response.status() == 404 {
             None
         } else {

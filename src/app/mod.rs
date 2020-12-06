@@ -23,6 +23,7 @@ enum Cmd {
     Identities(identities::App),
 }
 
+#[derive(Debug)]
 struct Context {
     api: Api,
 }
