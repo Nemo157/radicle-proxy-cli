@@ -12,6 +12,11 @@ pub(super) struct App {
 pub(super) enum Cmd {
     /// List all known identities
     List,
+    /// Get details for an identity
+    Get {
+        /// URN for the identity
+        urn: String,
+    },
 }
 
 impl App {
@@ -31,6 +36,13 @@ impl Cmd {
                         "{} {}: {}",
                         identity.avatar_fallback.emoji, identity.metadata.handle, identity.urn
                     );
+                }
+            }
+            Self::Get { urn } => {
+                if let Some(identity) = context.api.identities().get(&urn)? {
+                    println!("{:#?}", identity);
+                } else {
+                    println!("Identity not found");
                 }
             }
         }

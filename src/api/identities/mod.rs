@@ -20,6 +20,15 @@ crate struct Metadata {
 #[serde(rename_all = "camelCase")]
 crate struct AvatarFallback {
     crate emoji: String,
+    crate background: Color,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate struct Color {
+    crate r: u8,
+    crate g: u8,
+    crate b: u8,
 }
 
 crate struct Api<'a> {
@@ -33,6 +42,11 @@ impl<'a> Api<'a> {
 
     #[fehler::throws]
     crate fn list(&self) -> Vec<Identity> {
-        self.agent.get("/v1/identities/")?
+        self.agent.get(["v1", "identities"])?
+    }
+
+    #[fehler::throws]
+    crate fn get(&self, urn: &str) -> Option<Identity> {
+        self.agent.get_opt(["v1", "identities", urn])?
     }
 }

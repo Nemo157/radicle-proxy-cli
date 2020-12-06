@@ -17,6 +17,10 @@ impl Agent {
     #[fehler::throws(anyhow::Error)]
     pub(super) fn new(base: Url, auth_token: String) -> Self {
         let agent = ureq::agent();
+        anyhow::ensure!(
+            !base.cannot_be_a_base(),
+            "Invalid base url, must be able to append components"
+        );
         let domain = base
             .domain()
             .context("Invalid base url, must contain a domain to attach cookie to")?
@@ -31,10 +35,65 @@ impl Agent {
     }
 
     #[fehler::throws(crate::api::Error)]
-    pub(super) fn get<T: serde::de::DeserializeOwned>(&self, path: &str) -> T {
-        let url = self.base.join(path)?.to_string();
-        let response = self.agent.get(&url).call();
+    pub(super) fn get<T: serde::de::DeserializeOwned>(&self, path: impl UrlComponents) -> T {
+        let url = path.append_to(self.base.clone());
+        let response = self.agent.get(&url.to_string()).call();
         response.check_error()?.into_json_deserialize()?
+    }
+
+    #[fehler::throws(crate::api::Error)]
+    pub(super) fn get_opt<T: serde::de::DeserializeOwned>(
+        &self,
+        path: impl UrlComponents,
+    ) -> Option<T> {
+        let url = path.append_to(self.base.clone());
+        let response = self.agent.get(&url.to_string()).call();
+        if response.status() == 404 {
+            None
+        } else {
+            Some(response.check_error()?.into_json_deserialize()?)
+        }
+    }
+}
+
+pub(super) trait UrlComponents {
+    fn append_to(self, url: Url) -> Url;
+}
+
+impl UrlComponents for &str {
+    fn append_to(self, mut url: Url) -> Url {
+        url.path_segments_mut()
+            .expect("cannot_be_a_base checked in constructor")
+            .push(self);
+        url
+    }
+}
+
+impl UrlComponents for String {
+    fn append_to(self, url: Url) -> Url {
+        self.as_str().append_to(url)
+    }
+}
+
+impl<T> UrlComponents for &[T]
+where
+    for<'a> &'a T: UrlComponents,
+{
+    fn append_to(self, url: Url) -> Url {
+        self.iter()
+            .fold(url, |url, component| component.append_to(url))
+    }
+}
+
+impl<T: UrlComponents, const N: usize> UrlComponents for [T; N] {
+    fn append_to(self, url: Url) -> Url {
+        std::array::IntoIter::new(self).fold(url, |url, component| component.append_to(url))
+    }
+}
+
+impl<T: UrlComponents, U: UrlComponents> UrlComponents for (T, U) {
+    fn append_to(self, url: Url) -> Url {
+        self.1.append_to(self.0.append_to(url))
     }
 }
 
