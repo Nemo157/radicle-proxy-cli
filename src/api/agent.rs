@@ -1,4 +1,5 @@
 use anyhow::Context;
+use secrecy::{ExposeSecret, Secret};
 use url::Url;
 
 #[derive(Debug, serde::Deserialize)]
@@ -15,7 +16,7 @@ pub(super) struct Agent {
 
 impl Agent {
     #[fehler::throws(anyhow::Error)]
-    pub(super) fn new(base: Url, auth_token: String) -> Self {
+    pub(super) fn new(base: Url, auth_token: Secret<String>) -> Self {
         let agent = ureq::agent();
         anyhow::ensure!(
             !base.cannot_be_a_base(),
@@ -26,7 +27,7 @@ impl Agent {
             .context("Invalid base url, must contain a domain to attach cookie to")?
             .to_owned();
         agent.set_cookie(
-            ureq::Cookie::build("auth-token", auth_token)
+            ureq::Cookie::build("auth-token", auth_token.expose_secret().to_owned())
                 .domain(domain)
                 .path("/")
                 .finish(),

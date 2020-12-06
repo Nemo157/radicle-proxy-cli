@@ -1,5 +1,6 @@
 use crate::api::Api;
 use anyhow::Error;
+use secrecy::Secret;
 
 mod identities;
 
@@ -12,7 +13,7 @@ crate struct App {
     #[clap(long)]
     base_url: url::Url,
     #[clap(long)]
-    auth_token: String,
+    auth_token: Secret<String>,
     #[clap(subcommand)]
     cmd: Cmd,
 }

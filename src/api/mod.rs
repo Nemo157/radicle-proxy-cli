@@ -1,3 +1,4 @@
+use secrecy::Secret;
 use url::Url;
 
 mod agent;
@@ -27,9 +28,9 @@ crate struct Api {
 
 impl Api {
     #[fehler::throws(anyhow::Error)]
-    crate fn new(base: Url, auth_token: impl Into<String>) -> Self {
+    crate fn new(base: Url, auth_token: Secret<String>) -> Self {
         Self {
-            agent: Agent::new(base, auth_token.into())?,
+            agent: Agent::new(base, auth_token)?,
         }
     }
 
