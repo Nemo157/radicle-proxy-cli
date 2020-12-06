@@ -31,6 +31,7 @@ struct Context {
 impl App {
     #[fehler::throws]
     crate fn run(self) {
+        tracing::trace!(?self, "running app");
         let context = Context {
             api: Api::new(self.base_url, self.auth_token)?,
         };

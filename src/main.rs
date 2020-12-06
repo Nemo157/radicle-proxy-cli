@@ -11,5 +11,6 @@ mod app;
 
 #[fehler::throws]
 fn main() {
+    tracing_subscriber::fmt::init();
     app::App::parse().run()?;
 }

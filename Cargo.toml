@@ -16,5 +16,7 @@ fehler = { version = "1.0.0", default-features = false }
 secrecy = { version = "0.7.0", features = ["alloc", "serde"], default-features = false }
 serde = { version = "1.0.118", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.22", default-features = false }
+tracing = { version = "0.1.22", default-features = false }
+tracing-subscriber = { version = "0.2.15", features = ["env-filter", "fmt", "ansi"], default-features = false }
 ureq = { version = "1.5.2", features = ["json", "cookies"], default-features = false }
 url = { version = "2.2.0", default-features = false }

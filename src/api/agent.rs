@@ -1,5 +1,6 @@
 use anyhow::Context;
 use secrecy::{ExposeSecret, Secret};
+use std::fmt::Debug;
 use url::Url;
 
 #[derive(Debug, serde::Deserialize)]
@@ -59,8 +60,12 @@ impl Agent {
     }
 
     #[fehler::throws(crate::api::Error)]
-    pub(super) fn get<T: serde::de::DeserializeOwned>(&self, path: impl UrlComponents) -> T {
+    pub(super) fn get<T: serde::de::DeserializeOwned>(
+        &self,
+        path: impl UrlComponents + Debug,
+    ) -> T {
         let url = path.append_to(self.base.clone());
+        tracing::debug!(%url, "get");
         let response = self.agent.expose_secret().get(&url.to_string()).call();
         response.check_error()?.into_json_deserialize()?
     }
@@ -68,9 +73,10 @@ impl Agent {
     #[fehler::throws(crate::api::Error)]
     pub(super) fn get_opt<T: serde::de::DeserializeOwned>(
         &self,
-        path: impl UrlComponents,
+        path: impl UrlComponents + Debug,
     ) -> Option<T> {
         let url = path.append_to(self.base.clone());
+        tracing::debug!(%url, "get");
         let response = self.agent.expose_secret().get(&url.to_string()).call();
         if response.status() == 404 {
             None
