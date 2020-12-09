@@ -3,6 +3,7 @@ use anyhow::Error;
 use secrecy::Secret;
 
 mod identities;
+mod projects;
 mod seeds;
 mod session;
 
@@ -23,6 +24,7 @@ enum Cmd {
     Identities(identities::App),
     Session(session::App),
     Seeds(seeds::App),
+    Projects(projects::App),
 }
 
 #[derive(Debug)]
@@ -50,9 +52,10 @@ impl Cmd {
     #[fehler::throws]
     fn run(self, context: &Context) {
         match self {
-            Self::Identities(identities) => identities.run(context)?,
-            Self::Session(session) => session.run(context)?,
-            Self::Seeds(seeds) => seeds.run(context)?,
+            Self::Identities(app) => app.run(context)?,
+            Self::Session(app) => app.run(context)?,
+            Self::Seeds(app) => app.run(context)?,
+            Self::Projects(app) => app.run(context)?,
         }
     }
 }

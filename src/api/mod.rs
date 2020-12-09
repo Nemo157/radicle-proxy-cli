@@ -3,6 +3,7 @@ use url::Url;
 
 mod agent;
 crate mod identities;
+crate mod projects;
 crate mod session;
 
 use agent::Agent;
@@ -49,6 +50,10 @@ impl Api {
 
     crate fn session(&self) -> session::Api<'_> {
         session::Api::new(&self.agent)
+    }
+
+    crate fn projects(&self) -> projects::Api<'_> {
+        projects::Api::new(&self.agent)
     }
 }
 
