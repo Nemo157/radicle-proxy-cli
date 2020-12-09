@@ -3,6 +3,8 @@ use anyhow::Error;
 use secrecy::Secret;
 
 mod identities;
+mod seeds;
+mod session;
 
 #[derive(Debug, clap::Clap)]
 #[clap(name = "rad", about, version)]
@@ -19,6 +21,8 @@ crate struct App {
 #[derive(Debug, clap::Clap)]
 enum Cmd {
     Identities(identities::App),
+    Session(session::App),
+    Seeds(seeds::App),
 }
 
 #[derive(Debug)]
@@ -47,6 +51,8 @@ impl Cmd {
     fn run(self, context: &Context) {
         match self {
             Self::Identities(identities) => identities.run(context)?,
+            Self::Session(session) => session.run(context)?,
+            Self::Seeds(seeds) => seeds.run(context)?,
         }
     }
 }

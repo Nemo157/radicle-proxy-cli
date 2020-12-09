@@ -3,6 +3,7 @@ use url::Url;
 
 mod agent;
 crate mod identities;
+crate mod session;
 
 use agent::Agent;
 
@@ -44,6 +45,10 @@ impl Api {
 
     crate fn identities(&self) -> identities::Api<'_> {
         identities::Api::new(&self.agent)
+    }
+
+    crate fn session(&self) -> session::Api<'_> {
+        session::Api::new(&self.agent)
     }
 }
 
