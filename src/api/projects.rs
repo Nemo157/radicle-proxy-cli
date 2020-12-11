@@ -26,6 +26,22 @@ crate struct Stats {
     crate contributors: u64,
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate struct Peer {
+    crate peer_id: String,
+    crate status: PeerStatus,
+    crate type_: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate struct PeerStatus {
+    crate role: String,
+    crate type_: String,
+    crate user: crate::api::identities::Identity,
+}
+
 crate struct Api<'a> {
     agent: &'a crate::api::Agent,
 }
@@ -48,5 +64,10 @@ impl<'a> Api<'a> {
     #[fehler::throws]
     crate fn get(&self, urn: &str) -> Option<Project> {
         self.agent.get_opt(["v1", "projects", urn])?
+    }
+
+    #[fehler::throws]
+    crate fn peers(&self, urn: &str) -> Vec<Peer> {
+        self.agent.get(["v1", "projects", urn, "peers"])?
     }
 }

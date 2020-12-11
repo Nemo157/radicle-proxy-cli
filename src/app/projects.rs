@@ -12,10 +12,18 @@ pub(super) struct App {
 pub(super) enum Cmd {
     /// Get the list of tracked projects
     Tracked,
+
     /// Get the list of contributed projects
     Contributed,
+
     /// Get a projects details
     Get {
+        /// URN for the project
+        urn: String,
+    },
+
+    /// Get the tracked peers for a project
+    Peers {
         /// URN for the project
         urn: String,
     },
@@ -37,16 +45,27 @@ impl Cmd {
                     println!("{}: {}", project.metadata.name, project.urn);
                 }
             }
+
             Self::Contributed => {
                 for project in context.api.projects().contributed()? {
                     println!("{}: {}", project.metadata.name, project.urn);
                 }
             }
+
             Self::Get { urn } => {
                 if let Some(project) = context.api.projects().get(&urn)? {
                     println!("{:#?}", project);
                 } else {
                     println!("Project {} not found", urn);
+                }
+            }
+
+            Self::Peers { urn } => {
+                for peer in context.api.projects().peers(&urn)? {
+                    println!(
+                        "{} ({}): {}",
+                        peer.status.user.metadata.handle, peer.peer_id, peer.status.role
+                    );
                 }
             }
         }
