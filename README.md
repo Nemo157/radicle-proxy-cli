@@ -23,7 +23,7 @@ Then install via the Radicle git repo:
 > PATH="$HOME/.radicle/bin:$PATH" \
   cargo install \
   --config=net.git-fetch-with-cli=true -Zunstable-options \
-  --git rad://hyy7poyurp67tb14oa17e7d3wn4ieg4yg1r3h3q8kkc3prc7ux4hpy@hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a.git
+  --git rad://hyy7poyurp67tb14oa17e7d3wn4ieg4yg1r3h3q8kkc3prc7ux4hpy@hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a.git \
   --branch prīmum
     Updating git repository `rad://hyy7poyurp67tb14oa17e7d3wn4ieg4yg1r3h3q8kkc3prc7ux4hpy@hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a.git`
 Password for 'rad://radicle@hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a.git':
