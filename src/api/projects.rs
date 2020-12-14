@@ -52,21 +52,25 @@ impl<'a> Api<'a> {
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn tracked(&self) -> Vec<Project> {
         self.agent.get(["v1", "projects", "tracked"])?
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn contributed(&self) -> Vec<Project> {
         self.agent.get(["v1", "projects", "contributed"])?
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn get(&self, urn: &str) -> Option<Project> {
         self.agent.get_opt(["v1", "projects", urn])?
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn peers(&self, urn: &str) -> Vec<Peer> {
         self.agent.get(["v1", "projects", urn, "peers"])?
     }

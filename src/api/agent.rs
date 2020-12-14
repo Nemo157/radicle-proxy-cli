@@ -8,7 +8,6 @@ struct ErrorResponse {
     variant: String,
 }
 
-#[derive(Debug)]
 pub(super) struct Agent {
     base: Url,
     agent: Secret<UreqAgent>,
@@ -30,16 +29,17 @@ impl secrecy::Zeroize for UreqAgent {
     }
 }
 
-impl secrecy::DebugSecret for UreqAgent {
-    fn debug_secret(f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[REDACTED {}]", std::any::type_name::<ureq::Agent>())
+impl std::fmt::Debug for Agent {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        f.debug_struct("Agent").field("base", &self.base.to_string()).finish()?;
     }
 }
 
 impl Agent {
     #[fehler::throws(anyhow::Error)]
+    #[tracing::instrument(fields(%base))]
     pub(super) fn new(base: Url) -> Self {
-        tracing::debug!(%base, "Initializing agent");
         let agent = ureq::agent();
         anyhow::ensure!(
             !base.cannot_be_a_base(),
@@ -50,6 +50,7 @@ impl Agent {
     }
 
     #[fehler::throws(crate::api::Error)]
+    #[tracing::instrument]
     pub(super) fn login(&self, passphrase: Secret<String>) {
         #[derive(Debug, serde::Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -76,45 +77,54 @@ impl Agent {
     }
 
     #[fehler::throws(crate::api::Error)]
-    pub(super) fn get<T: serde::de::DeserializeOwned>(
+    #[tracing::instrument]
+    pub(super) fn get<T: serde::de::DeserializeOwned + Debug>(
         &self,
         path: impl UrlComponents + Debug,
     ) -> T {
         let url = path.append_to(self.base.clone());
-        tracing::debug!(%url, "get");
         let response = self.agent.expose_secret().get(&url.to_string()).call();
-        response.check_error()?.into_json_deserialize()?
+        tracing::debug!(%url, ?response);
+        let value = response.check_error()?.into_json_deserialize()?;
+        tracing::trace!(?value);
+        value
     }
 
     #[fehler::throws(crate::api::Error)]
-    pub(super) fn get_opt<T: serde::de::DeserializeOwned>(
+    #[tracing::instrument]
+    pub(super) fn get_opt<T: serde::de::DeserializeOwned + Debug>(
         &self,
         path: impl UrlComponents + Debug,
     ) -> Option<T> {
         let url = path.append_to(self.base.clone());
-        tracing::debug!(%url, "get");
         let response = self.agent.expose_secret().get(&url.to_string()).call();
-        if response.status() == 404 {
+        tracing::debug!(%url, ?response);
+        let value = if response.status() == 404 {
             None
         } else {
             Some(response.check_error()?.into_json_deserialize()?)
-        }
+        };
+        tracing::trace!(?value);
+        value
     }
 
     #[fehler::throws(crate::api::Error)]
-    pub(super) fn post<T: serde::de::DeserializeOwned>(
+    #[tracing::instrument]
+    pub(super) fn post<T: serde::de::DeserializeOwned + Debug>(
         &self,
         path: impl UrlComponents + Debug,
         data: impl serde::Serialize + Debug,
     ) -> T {
         let url = path.append_to(self.base.clone());
-        tracing::debug!(%url, ?data, "post");
         let response = self
             .agent
             .expose_secret()
             .post(&url.to_string())
             .send_json(ureq::serde_to_value(data)?);
-        response.check_error()?.into_json_deserialize()?
+        tracing::debug!(%url, ?response);
+        let value = response.check_error()?.into_json_deserialize()?;
+        tracing::trace!(?value);
+        value
     }
 }
 

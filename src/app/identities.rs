@@ -59,3 +59,21 @@ impl Cmd {
         }
     }
 }
+
+impl std::fmt::Display for App {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        write!(f, "identities {}", self.cmd)?;
+    }
+}
+
+impl std::fmt::Display for Cmd {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        match self {
+            Self::List => write!(f, "list")?,
+            Self::Get { urn } => write!(f, "get {:?}", urn)?,
+            Self::This => write!(f, "self")?,
+        }
+    }
+}

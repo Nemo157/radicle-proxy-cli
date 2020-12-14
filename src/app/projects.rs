@@ -71,3 +71,22 @@ impl Cmd {
         }
     }
 }
+
+impl std::fmt::Display for App {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        write!(f, "projects {}", self.cmd)?;
+    }
+}
+
+impl std::fmt::Display for Cmd {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        match self {
+            Self::Tracked => write!(f, "tracked")?,
+            Self::Contributed => write!(f, "contributed")?,
+            Self::Get { urn } => write!(f, "get {:?}", urn)?,
+            Self::Peers { urn } => write!(f, "peers {:?}", urn)?,
+        }
+    }
+}

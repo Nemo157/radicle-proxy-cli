@@ -41,11 +41,13 @@ impl<'a> Api<'a> {
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn list(&self) -> Vec<Identity> {
         self.agent.get(["v1", "identities"])?
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn get(&self, urn: &str) -> Option<Identity> {
         self.agent.get_opt(["v1", "identities", urn])?
     }

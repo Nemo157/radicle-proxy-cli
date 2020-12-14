@@ -44,11 +44,13 @@ impl<'a> Api<'a> {
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn get(&self) -> Session {
         self.agent.get(["v1", "session"])?
     }
 
     #[fehler::throws]
+    #[tracing::instrument(skip(self))]
     crate fn update_settings(&self, settings: Settings) {
         let Nothing = self.agent.post(["v1", "session", "settings"], settings)?;
     }

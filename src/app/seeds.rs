@@ -47,3 +47,21 @@ impl Cmd {
         }
     }
 }
+
+impl std::fmt::Display for App {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        write!(f, "seeds {}", self.cmd)?;
+    }
+}
+
+impl std::fmt::Display for Cmd {
+    #[fehler::throws(std::fmt::Error)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
+        match self {
+            Self::List => write!(f, "list")?,
+            Self::Add { seed } => write!(f, "add {:?}", seed)?,
+            Self::Remove { seed } => write!(f, "remove {:?}", seed)?,
+        }
+    }
+}
