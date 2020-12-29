@@ -1,9 +1,10 @@
 [package]
 name = "radicle-proxy-cli"
 version = "0.1.0"
-authors = ["Wim Looman <git@nemo157.com>"]
+authors = ["Wim Looman <radicle-proxy-cli.crate@nemo157.com>"]
 edition = "2018"
 description = "A CLI interface to radicle-proxy"
+repository = "rad:git:hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a"
 
 [[bin]]
 name = "rad"

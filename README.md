@@ -8,7 +8,7 @@ third-party tools like this connecting to it may break at any time.**
 
 ## Project Links
 
-* Project: `rad:git:hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a`
+* Project: <rad:git:hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a>
 * Primary seed: `hybjnt4saqzz77zih7b6jp1ro8kzq3w6owh6nuawrkw6y6js4ssrd4@radicle.nemo157.com:4001` (<https://radicle.nemo157.com>)
 * Discussion, Issues, PRs: `#radicle-proxy-cli:nemo157.com` ([via matrix.to](https://matrix.to/#/#radicle-proxy-cli:nemo157.com))
 
