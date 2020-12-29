@@ -5,6 +5,7 @@ authors = ["Wim Looman <radicle-proxy-cli.crate@nemo157.com>"]
 edition = "2018"
 description = "A CLI interface to radicle-proxy"
 repository = "rad:git:hwd1yre85oenojqfpzt1ihd36enmupg4dnb1o78rsos8h957bpxxbzn5g4a"
+license = "MIT OR Apache-2.0"
 
 [[bin]]
 name = "rad"
