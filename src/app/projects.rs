@@ -16,6 +16,9 @@ pub(super) enum Cmd {
     /// Get the list of contributed projects
     Contributed,
 
+    /// Get the list of requested projects
+    Requested,
+
     /// Get a projects details
     Get {
         /// URN for the project
@@ -52,6 +55,12 @@ impl Cmd {
                 }
             }
 
+            Self::Requested => {
+                for project in context.api.projects().requested()? {
+                    println!("{}: {:?}", project.urn, project.state);
+                }
+            }
+
             Self::Get { urn } => {
                 if let Some(project) = context.api.projects().get(&urn)? {
                     println!("{:#?}", project);
@@ -85,6 +94,7 @@ impl std::fmt::Display for Cmd {
         match self {
             Self::Tracked => write!(f, "tracked")?,
             Self::Contributed => write!(f, "contributed")?,
+            Self::Requested => write!(f, "requested")?,
             Self::Get { urn } => write!(f, "get {:?}", urn)?,
             Self::Peers { urn } => write!(f, "peers {:?}", urn)?,
         }

@@ -32,7 +32,9 @@ impl secrecy::Zeroize for UreqAgent {
 impl std::fmt::Debug for Agent {
     #[fehler::throws(std::fmt::Error)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
-        f.debug_struct("Agent").field("base", &self.base.to_string()).finish()?;
+        f.debug_struct("Agent")
+            .field("base", &self.base.to_string())
+            .finish()?;
     }
 }
 

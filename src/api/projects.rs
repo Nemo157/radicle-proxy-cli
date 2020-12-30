@@ -1,4 +1,5 @@
 use crate::api::Error;
+use std::collections::HashMap;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +43,52 @@ crate struct PeerStatus {
     crate user: crate::api::identities::Identity,
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate struct Request {
+    crate urn: String,
+    // This has a very unstable looking repr in the current response
+    attempts: ureq::SerdeValue,
+    crate timestamp: u64,
+    #[serde(flatten)]
+    crate state: RequestState,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", tag = "type", content = "state")]
+crate enum RequestState {
+    Created {},
+    Requested {
+        peers: HashMap<String, RequestStatus>,
+    },
+    Found {
+        peers: HashMap<String, RequestStatus>,
+    },
+    Cloning {
+        peers: HashMap<String, RequestStatus>,
+    },
+    Cloned {
+        url: String,
+    },
+    Cancelled {},
+    TimedOut(TimedOut),
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate enum RequestStatus {
+    Available,
+    InProgress,
+    Failed,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+crate enum TimedOut {
+    Query,
+    Clone,
+}
+
 crate struct Api<'a> {
     agent: &'a crate::api::Agent,
 }
@@ -61,6 +108,12 @@ impl<'a> Api<'a> {
     #[tracing::instrument(skip(self))]
     crate fn contributed(&self) -> Vec<Project> {
         self.agent.get(["v1", "projects", "contributed"])?
+    }
+
+    #[fehler::throws]
+    #[tracing::instrument(skip(self))]
+    crate fn requested(&self) -> Vec<Request> {
+        self.agent.get(["v1", "projects", "requests"])?
     }
 
     #[fehler::throws]
