@@ -1,8 +1,10 @@
 use crate::api::Api;
 use anyhow::Error;
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 
 mod identities;
+#[cfg(target_os = "linux")]
+mod keyutils;
 mod projects;
 mod seeds;
 mod session;
@@ -35,18 +37,84 @@ struct Context {
     api: Api,
 }
 
+const AUTH_TOKEN_KEY: &str = "radicle-proxy-cli:auth_token";
+const AUTH_TOKEN_EXPIRY: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+trait ResultExt<T> {
+    fn ok_or_debug(self) -> Option<T>;
+}
+
+impl<T, E: std::error::Error> ResultExt<T> for Result<T, E> {
+    fn ok_or_debug(self) -> Option<T> {
+        match self {
+            Ok(value) => Some(value),
+            Err(err) => {
+                tracing::debug!("{}", err);
+                None
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[fehler::throws]
+#[tracing::instrument]
+fn load_auth_token() -> Option<Secret<String>> {
+    if let Some(auth_token) = keyutils::read_key(AUTH_TOKEN_KEY).ok_or_debug() {
+        Some(Secret::new(String::from_utf8(auth_token)?))
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[fehler::throws]
+#[tracing::instrument]
+fn load_auth_token() -> Option<Secret<String>> {
+    None
+}
+
+#[cfg(target_os = "linux")]
+#[fehler::throws]
+#[tracing::instrument]
+fn store_auth_token(auth_token: Secret<String>) {
+    if let Some(()) =
+        keyutils::store_key(AUTH_TOKEN_KEY, auth_token.expose_secret().as_bytes()).ok_or_debug()
+    {
+        keyutils::set_timeout(AUTH_TOKEN_KEY, AUTH_TOKEN_EXPIRY).ok_or_debug();
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[fehler::throws]
+#[tracing::instrument]
+fn store_auth_token() {}
+
+#[fehler::throws]
+#[tracing::instrument]
+fn get_passphrase() -> Secret<String> {
+    Secret::new(rpassword::read_password_from_tty(Some(
+        "Please enter radicle passphrase: ",
+    ))?)
+}
+
 impl App {
     #[fehler::throws]
     #[tracing::instrument(fields(%self))]
     crate fn run(self) {
-        tracing::debug!("requesting passphrase");
-        let passphrase = Secret::new(rpassword::read_password_from_tty(Some(
-            "Please enter radicle passphrase: ",
-        ))?);
-        let context = Context {
-            api: Api::new(self.base_url)?,
+        let api = Api::new(self.base_url)?;
+
+        let authed = if let Some(auth_token) = load_auth_token()? {
+            api.set_token(auth_token)?
+        } else {
+            false
         };
-        context.api.login(passphrase)?;
+
+        if !authed {
+            store_auth_token(api.login(get_passphrase()?)?)?;
+        }
+
+        let context = Context { api };
         self.cmd.run(&context)?
     }
 }

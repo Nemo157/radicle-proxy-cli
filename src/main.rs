@@ -1,7 +1,8 @@
 #![feature(array_value_iter)]
 #![feature(crate_visibility_modifier)]
 #![feature(debug_non_exhaustive)]
-#![feature(min_const_generics)]
+#![feature(or_patterns)]
+#![feature(const_cstr_unchecked)]
 
 use anyhow::Error;
 use clap::Clap;

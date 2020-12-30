@@ -39,8 +39,15 @@ impl Api {
         }
     }
 
-    #[fehler::throws(crate::api::Error)]
-    crate fn login(&self, passphrase: Secret<String>) {
+    #[fehler::throws(anyhow::Error)]
+    /// Sets the current auth token, then returns whether it's valid
+    crate fn set_token(&self, auth_token: Secret<String>) -> bool {
+        self.agent.set_token(auth_token)?
+    }
+
+    #[fehler::throws(anyhow::Error)]
+    /// Logs in, then returns the new auth token
+    crate fn login(&self, passphrase: Secret<String>) -> Secret<String> {
         self.agent.login(passphrase)?
     }
 

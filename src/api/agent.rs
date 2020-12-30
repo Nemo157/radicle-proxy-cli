@@ -1,3 +1,4 @@
+use anyhow::Context;
 use secrecy::{ExposeSecret, Secret};
 use std::fmt::Debug;
 use url::Url;
@@ -51,9 +52,35 @@ impl Agent {
         Self { base, agent }
     }
 
-    #[fehler::throws(crate::api::Error)]
+    #[fehler::throws(anyhow::Error)]
     #[tracing::instrument]
-    pub(super) fn login(&self, passphrase: Secret<String>) {
+    /// Sets the current auth token, then returns whether it's valid
+    pub(super) fn set_token(&self, auth_token: Secret<String>) -> bool {
+        let domain = self
+            .base
+            .domain()
+            .context("Invalid base url, must contain a domain to attach cookie to")?
+            .to_owned();
+        self.agent.expose_secret().set_cookie(
+            ureq::Cookie::build("auth-token", auth_token.expose_secret().to_owned())
+                .domain(domain)
+                .path("/")
+                .finish(),
+        );
+        match self.get(["v1", "session"]) {
+            Ok(t) => {
+                let _: ureq::SerdeValue = t;
+                true
+            }
+            Err(crate::api::Error::Api { code, .. }) if code == 403 => false,
+            Err(err) => fehler::throw!(err),
+        }
+    }
+
+    #[fehler::throws(anyhow::Error)]
+    #[tracing::instrument]
+    /// Logs in, then returns the new auth token
+    pub(super) fn login(&self, passphrase: Secret<String>) -> Secret<String> {
         #[derive(Debug, serde::Serialize)]
         #[serde(rename_all = "camelCase")]
         struct LoginData {
@@ -74,8 +101,20 @@ impl Agent {
 
         let crate::api::Nothing =
             self.post(["v1", "keystore", "unseal"], LoginData { passphrase })?;
+
+        let auth_token = Secret::new(
+            self.agent
+                .expose_secret()
+                .cookie("auth-token")
+                .context("Missing auth token after login")?
+                .value()
+                .to_owned(),
+        );
+
         // The web server resets itself after login...
         std::thread::sleep(std::time::Duration::from_millis(100));
+
+        auth_token
     }
 
     #[fehler::throws(crate::api::Error)]
