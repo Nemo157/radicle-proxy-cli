@@ -52,6 +52,7 @@ Cloning into 'radicle-upstream'...
 Resolving deltas: 100% (11096/11096), done.
 > cd radicle-upstream/proxy
 > git checkout v0.1.4  # Latest release this has been tested against, you did read that warning above, right?
+> cargo build # There is an implicit dependency on the git helper which `cargo run` does not pick up on
 > cargo run
     Finished dev [unoptimized + debuginfo] target(s) in 0.12s
      Running `/home/nemo157/.cargo/shared-target/debug/radicle-proxy`
