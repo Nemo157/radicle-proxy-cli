@@ -67,7 +67,7 @@ impl Agent {
                 .path("/")
                 .finish(),
         );
-        match self.get(["v1", "session"]) {
+        match self.get(["v1", "identities"]) {
             Ok(t) => {
                 let _: ureq::SerdeValue = t;
                 true
