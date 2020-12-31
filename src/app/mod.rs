@@ -1,10 +1,8 @@
 use crate::api::Api;
 use anyhow::Error;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 
 mod identities;
-#[cfg(target_os = "linux")]
-mod keyutils;
 mod projects;
 mod seeds;
 mod session;
@@ -37,19 +35,16 @@ struct Context {
     api: Api,
 }
 
-const AUTH_TOKEN_KEY: &str = "radicle-proxy-cli:auth_token";
-const AUTH_TOKEN_EXPIRY: std::time::Duration = std::time::Duration::from_secs(15 * 60);
-
 trait ResultExt<T> {
     fn ok_or_debug(self) -> Option<T>;
 }
 
-impl<T, E: std::error::Error> ResultExt<T> for Result<T, E> {
+impl<T, E: std::fmt::Debug> ResultExt<T> for Result<T, E> {
     fn ok_or_debug(self) -> Option<T> {
         match self {
             Ok(value) => Some(value),
             Err(err) => {
-                tracing::debug!("{}", err);
+                tracing::debug!("{:?}", err);
                 None
             }
         }
@@ -57,38 +52,54 @@ impl<T, E: std::error::Error> ResultExt<T> for Result<T, E> {
 }
 
 #[cfg(target_os = "linux")]
-#[fehler::throws]
-#[tracing::instrument]
-fn load_auth_token() -> Option<Secret<String>> {
-    if let Some(auth_token) = keyutils::read_key(AUTH_TOKEN_KEY).ok_or_debug() {
-        Some(Secret::new(String::from_utf8(auth_token)?))
-    } else {
+mod auth_token {
+    use anyhow::Error;
+    use keyutils::{keytypes::user::User, Keyring, SpecialKeyring};
+    use secrecy::{ExposeSecret, Secret};
+
+    const AUTH_TOKEN_KEY: &str = "radicle-proxy-cli:auth_token";
+    const AUTH_TOKEN_EXPIRY: std::time::Duration = std::time::Duration::from_secs(15 * 60);
+
+    #[fehler::throws]
+    #[tracing::instrument]
+    pub(super) fn load() -> Secret<String> {
+        use keyutils::{keytypes::user::User, Keyring, SpecialKeyring};
+        // SAFETY: Not actually unsafe: https://github.com/mathstuf/rust-keyutils/issues/56
+        let session_keyring = unsafe { Keyring::new(SpecialKeyring::UserSession.serial()) };
+        let mut key = session_keyring
+            .search_for_key::<User, _, _>(AUTH_TOKEN_KEY, SpecialKeyring::Process)?;
+        let auth_token = String::from_utf8(key.read()?)?;
+        key.set_timeout(AUTH_TOKEN_EXPIRY)?;
+        Secret::new(auth_token)
+    }
+
+    #[fehler::throws]
+    #[tracing::instrument]
+    pub(super) fn store(auth_token: Secret<String>) {
+        // SAFETY: Not actually unsafe: https://github.com/mathstuf/rust-keyutils/issues/56
+        let mut session_keyring = unsafe { Keyring::new(SpecialKeyring::UserSession.serial()) };
+        let mut key = session_keyring
+            .add_key::<User, _, _>(AUTH_TOKEN_KEY, auth_token.expose_secret().as_bytes())?;
+        key.set_timeout(AUTH_TOKEN_EXPIRY)?;
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod auth_token {
+    use crate::api::Api;
+    use anyhow::Error;
+    use secrecy::Secret;
+
+    #[fehler::throws]
+    #[tracing::instrument]
+    fn load() -> Secret<String> {
         None
     }
-}
 
-#[cfg(not(target_os = "linux"))]
-#[fehler::throws]
-#[tracing::instrument]
-fn load_auth_token() -> Option<Secret<String>> {
-    None
+    #[fehler::throws]
+    #[tracing::instrument]
+    fn store() {}
 }
-
-#[cfg(target_os = "linux")]
-#[fehler::throws]
-#[tracing::instrument]
-fn store_auth_token(auth_token: Secret<String>) {
-    if let Some(()) =
-        keyutils::store_key(AUTH_TOKEN_KEY, auth_token.expose_secret().as_bytes()).ok_or_debug()
-    {
-        keyutils::set_timeout(AUTH_TOKEN_KEY, AUTH_TOKEN_EXPIRY).ok_or_debug();
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-#[fehler::throws]
-#[tracing::instrument]
-fn store_auth_token() {}
 
 #[fehler::throws]
 #[tracing::instrument]
@@ -104,14 +115,14 @@ impl App {
     crate fn run(self) {
         let api = Api::new(self.base_url)?;
 
-        let authed = if let Some(auth_token) = load_auth_token()? {
+        let authed = if let Some(auth_token) = auth_token::load().ok_or_debug() {
             api.set_token(auth_token)?
         } else {
             false
         };
 
         if !authed {
-            store_auth_token(api.login(get_passphrase()?)?)?;
+            auth_token::store(api.login(get_passphrase()?)?).ok_or_debug();
         }
 
         let context = Context { api };
