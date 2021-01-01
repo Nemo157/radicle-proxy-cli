@@ -1,4 +1,4 @@
-use crate::app::Context;
+use crate::app::WithContext;
 use anyhow::Error;
 
 #[derive(Debug, clap::Clap)]
@@ -32,45 +32,45 @@ pub(super) enum Cmd {
     },
 }
 
-impl App {
+impl WithContext<App> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        self.cmd.run(context)?
+    pub(super) fn run(self) {
+        self.map(|app| app.cmd).run()?
     }
 }
 
-impl Cmd {
+impl WithContext<Cmd> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        match self {
-            Self::Tracked => {
-                for project in context.api.projects().tracked()? {
+    pub(super) fn run(self) {
+        match self.as_ref() {
+            Cmd::Tracked => {
+                for project in self.api().projects().tracked()? {
                     println!("{}: {}", project.metadata.name, project.urn);
                 }
             }
 
-            Self::Contributed => {
-                for project in context.api.projects().contributed()? {
+            Cmd::Contributed => {
+                for project in self.api().projects().contributed()? {
                     println!("{}: {}", project.metadata.name, project.urn);
                 }
             }
 
-            Self::Requested => {
-                for project in context.api.projects().requested()? {
+            Cmd::Requested => {
+                for project in self.api().projects().requested()? {
                     println!("{}: {:?}", project.urn, project.state);
                 }
             }
 
-            Self::Get { urn } => {
-                if let Some(project) = context.api.projects().get(&urn)? {
+            Cmd::Get { urn } => {
+                if let Some(project) = self.api().projects().get(&urn)? {
                     println!("{:#?}", project);
                 } else {
                     println!("Project {} not found", urn);
                 }
             }
 
-            Self::Peers { urn } => {
-                for peer in context.api.projects().peers(&urn)? {
+            Cmd::Peers { urn } => {
+                for peer in self.api().projects().peers(&urn)? {
                     println!(
                         "{} ({}): {}",
                         peer.status.user.metadata.handle, peer.peer_id, peer.status.role

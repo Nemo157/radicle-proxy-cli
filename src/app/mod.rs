@@ -1,7 +1,9 @@
+use self::context::{Context, With, WithContext};
 use crate::api::Api;
 use anyhow::Error;
 use secrecy::Secret;
 
+mod context;
 mod identities;
 mod projects;
 mod seeds;
@@ -28,11 +30,6 @@ enum Cmd {
     Session(session::App),
     Seeds(seeds::App),
     Projects(projects::App),
-}
-
-#[derive(Debug)]
-struct Context {
-    api: Api,
 }
 
 trait ResultExt<T> {
@@ -125,20 +122,19 @@ impl App {
             auth_token::store(api.login(get_passphrase()?)?).ok_or_debug();
         }
 
-        let context = Context { api };
-        self.cmd.run(&context)?
+        self.cmd.with(Context::new(api)).run()?;
     }
 }
 
-impl Cmd {
+impl WithContext<Cmd> {
     #[fehler::throws]
-    fn run(self, context: &Context) {
-        match self {
-            Self::Identities(app) => app.run(context)?,
-            Self::Session(app) => app.run(context)?,
-            Self::Seeds(app) => app.run(context)?,
-            Self::Projects(app) => app.run(context)?,
-        }
+    fn run(self) {
+        self.and_then(|cmd, context| match cmd {
+            Cmd::Identities(app) => app.with(context).run(),
+            Cmd::Session(app) => app.with(context).run(),
+            Cmd::Seeds(app) => app.with(context).run(),
+            Cmd::Projects(app) => app.with(context).run(),
+        })?;
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::app::Context;
+use crate::app::WithContext;
 use anyhow::Error;
 
 #[derive(Debug, clap::Clap)]
@@ -18,31 +18,31 @@ pub(super) enum Cmd {
     Remove { seed: String },
 }
 
-impl App {
+impl WithContext<App> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        self.cmd.run(context)?
+    pub(super) fn run(self) {
+        self.map(|app| app.cmd).run()?
     }
 }
 
-impl Cmd {
+impl WithContext<Cmd> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        match self {
-            Self::List => {
-                for seed in context.api.session().get()?.settings.coco.seeds {
+    pub(super) fn run(self) {
+        match self.as_ref() {
+            Cmd::List => {
+                for seed in self.api().session().get()?.settings.coco.seeds {
                     println!("{}", seed);
                 }
             }
-            Self::Add { seed } => {
-                let mut settings = context.api.session().get()?.settings;
-                settings.coco.seeds.insert(seed);
-                context.api.session().update_settings(settings)?;
+            Cmd::Add { seed } => {
+                let mut settings = self.api().session().get()?.settings;
+                settings.coco.seeds.insert(seed.clone());
+                self.api().session().update_settings(settings)?;
             }
-            Self::Remove { seed } => {
-                let mut settings = context.api.session().get()?.settings;
-                settings.coco.seeds.remove(&seed);
-                context.api.session().update_settings(settings)?;
+            Cmd::Remove { seed } => {
+                let mut settings = self.api().session().get()?.settings;
+                settings.coco.seeds.remove(seed);
+                self.api().session().update_settings(settings)?;
             }
         }
     }

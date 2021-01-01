@@ -1,5 +1,5 @@
 use crate::api::identities::Identity;
-use crate::app::Context;
+use crate::app::WithContext;
 use anyhow::Error;
 
 #[derive(Debug, clap::Clap)]
@@ -25,14 +25,14 @@ pub(super) enum Cmd {
     This,
 }
 
-impl App {
+impl WithContext<App> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        self.cmd.run(context)?
+    pub(super) fn run(self) {
+        self.map(|app| app.cmd).run()?
     }
 }
 
-impl Cmd {
+impl WithContext<Cmd> {
     fn print_identities_list(&self, identities: &[Identity]) {
         for identity in identities {
             println!(
@@ -44,9 +44,8 @@ impl Cmd {
 
     #[fehler::throws]
     #[tracing::instrument]
-    fn find_matching_identities(&self, context: &Context, id: &str) -> Vec<Identity> {
-        context
-            .api
+    fn find_matching_identities(&self, id: &str) -> Vec<Identity> {
+        self.api()
             .identities()
             .list()?
             .into_iter()
@@ -57,13 +56,13 @@ impl Cmd {
     }
 
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        match &self {
-            Self::List => {
-                self.print_identities_list(&context.api.identities().list()?);
+    pub(super) fn run(self) {
+        match self.as_ref() {
+            Cmd::List => {
+                self.print_identities_list(&self.api().identities().list()?);
             }
 
-            Self::Get { id } => match self.find_matching_identities(context, id)?.as_slice() {
+            Cmd::Get { id } => match self.find_matching_identities(id)?.as_slice() {
                 [] => {
                     println!("no identity matching '{}' found", id);
                 }
@@ -82,8 +81,8 @@ impl Cmd {
                 }
             },
 
-            Self::This => {
-                let identity = context.api.session().get()?.identity;
+            Cmd::This => {
+                let identity = self.api().session().get()?.identity;
                 println!("{:#?}", identity);
             }
         }

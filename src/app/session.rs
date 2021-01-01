@@ -1,4 +1,4 @@
-use crate::app::Context;
+use crate::app::WithContext;
 use anyhow::Error;
 
 #[derive(Debug, clap::Clap)]
@@ -14,19 +14,19 @@ pub(super) enum Cmd {
     Get,
 }
 
-impl App {
+impl WithContext<App> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        self.cmd.run(context)?
+    pub(super) fn run(self) {
+        self.map(|app| app.cmd).run()?
     }
 }
 
-impl Cmd {
+impl WithContext<Cmd> {
     #[fehler::throws]
-    pub(super) fn run(self, context: &Context) {
-        match self {
-            Self::Get => {
-                let session = context.api.session().get()?;
+    pub(super) fn run(self) {
+        match self.as_ref() {
+            Cmd::Get => {
+                let session = self.api().session().get()?;
                 println!("{:#?}", session);
             }
         }
