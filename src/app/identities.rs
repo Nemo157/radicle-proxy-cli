@@ -1,6 +1,7 @@
 use crate::api::identities::Identity;
 use crate::app::WithContext;
 use anyhow::Error;
+use std::io::Write;
 
 #[derive(Debug, clap::Clap)]
 /// Commands related to identities
@@ -33,12 +34,16 @@ impl WithContext<App> {
 }
 
 impl WithContext<Cmd> {
+    #[fehler::throws]
     fn print_identities_list(&self, identities: &[Identity]) {
         for identity in identities {
-            println!(
+            writeln!(
+                self.output(),
                 "{} {}: {}",
-                identity.avatar_fallback.emoji, identity.metadata.handle, identity.peer_id
-            );
+                identity.avatar_fallback.emoji,
+                identity.metadata.handle,
+                identity.peer_id
+            )?;
         }
     }
 
@@ -59,31 +64,32 @@ impl WithContext<Cmd> {
     pub(super) fn run(self) {
         match self.as_ref() {
             Cmd::List => {
-                self.print_identities_list(&self.api().identities().list()?);
+                self.print_identities_list(&self.api().identities().list()?)?;
             }
 
             Cmd::Get { id } => match self.find_matching_identities(id)?.as_slice() {
                 [] => {
-                    println!("no identity matching '{}' found", id);
+                    writeln!(self.output(), "no identity matching '{}' found", id)?;
                 }
                 [identity] => {
-                    println!("{:#?}", identity);
+                    writeln!(self.output(), "{:#?}", identity)?;
                 }
                 identities => {
-                    println!(
+                    writeln!(
+                        self.output(),
                         "\
                             multiple identities matched '{}', \
                             please use a urn/peer_id to guarantee uniqueness:
                         ",
                         id
-                    );
-                    self.print_identities_list(identities);
+                    )?;
+                    self.print_identities_list(identities)?;
                 }
             },
 
             Cmd::This => {
                 let identity = self.api().session().get()?.identity;
-                println!("{:#?}", identity);
+                writeln!(self.output(), "{:#?}", identity)?;
             }
         }
     }

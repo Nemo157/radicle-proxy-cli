@@ -1,5 +1,6 @@
 use crate::app::WithContext;
 use anyhow::Error;
+use std::io::Write;
 
 #[derive(Debug, clap::Clap)]
 /// Commands related to the seed list
@@ -31,7 +32,7 @@ impl WithContext<Cmd> {
         match self.as_ref() {
             Cmd::List => {
                 for seed in self.api().session().get()?.settings.coco.seeds {
-                    println!("{}", seed);
+                    writeln!(self.output(), "{}", seed)?;
                 }
             }
             Cmd::Add { seed } => {

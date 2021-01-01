@@ -1,5 +1,6 @@
 use crate::app::WithContext;
 use anyhow::Error;
+use std::io::Write;
 
 #[derive(Debug, clap::Clap)]
 /// Commands related to the current session
@@ -27,7 +28,7 @@ impl WithContext<Cmd> {
         match self.as_ref() {
             Cmd::Get => {
                 let session = self.api().session().get()?;
-                println!("{:#?}", session);
+                writeln!(self.output(), "{:#?}", session)?;
             }
         }
     }

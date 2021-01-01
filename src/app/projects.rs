@@ -1,5 +1,6 @@
 use crate::app::WithContext;
 use anyhow::Error;
+use std::io::Write;
 
 #[derive(Debug, clap::Clap)]
 /// Commands related to projects
@@ -45,36 +46,39 @@ impl WithContext<Cmd> {
         match self.as_ref() {
             Cmd::Tracked => {
                 for project in self.api().projects().tracked()? {
-                    println!("{}: {}", project.metadata.name, project.urn);
+                    writeln!(self.output(), "{}: {}", project.metadata.name, project.urn)?;
                 }
             }
 
             Cmd::Contributed => {
                 for project in self.api().projects().contributed()? {
-                    println!("{}: {}", project.metadata.name, project.urn);
+                    writeln!(self.output(), "{}: {}", project.metadata.name, project.urn)?;
                 }
             }
 
             Cmd::Requested => {
                 for project in self.api().projects().requested()? {
-                    println!("{}: {:?}", project.urn, project.state);
+                    writeln!(self.output(), "{}: {:?}", project.urn, project.state)?;
                 }
             }
 
             Cmd::Get { urn } => {
                 if let Some(project) = self.api().projects().get(&urn)? {
-                    println!("{:#?}", project);
+                    writeln!(self.output(), "{:#?}", project)?;
                 } else {
-                    println!("Project {} not found", urn);
+                    writeln!(self.output(), "Project {} not found", urn)?;
                 }
             }
 
             Cmd::Peers { urn } => {
                 for peer in self.api().projects().peers(&urn)? {
-                    println!(
+                    writeln!(
+                        self.output(),
                         "{} ({}): {}",
-                        peer.status.user.metadata.handle, peer.peer_id, peer.status.role
-                    );
+                        peer.status.user.metadata.handle,
+                        peer.peer_id,
+                        peer.status.role
+                    )?;
                 }
             }
         }

@@ -122,7 +122,7 @@ impl App {
             auth_token::store(api.login(get_passphrase()?)?).ok_or_debug();
         }
 
-        self.cmd.with(Context::new(api)).run()?;
+        self.cmd.with(Context::new(api, std::io::stdout())).run()?;
     }
 }
 
