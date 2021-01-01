@@ -1,3 +1,4 @@
+use crate::api::identities::Identity;
 use crate::app::Context;
 use anyhow::Error;
 
@@ -15,8 +16,8 @@ pub(super) enum Cmd {
 
     /// Get details for an identity
     Get {
-        /// URN for the identity
-        urn: String,
+        /// URN, handle or peer-id for the identity
+        id: String,
     },
 
     /// Get own identity details
@@ -32,25 +33,54 @@ impl App {
 }
 
 impl Cmd {
+    fn print_identities_list(&self, identities: &[Identity]) {
+        for identity in identities {
+            println!(
+                "{} {}: {}",
+                identity.avatar_fallback.emoji, identity.metadata.handle, identity.peer_id
+            );
+        }
+    }
+
+    #[fehler::throws]
+    #[tracing::instrument]
+    fn find_matching_identities(&self, context: &Context, id: &str) -> Vec<Identity> {
+        context
+            .api
+            .identities()
+            .list()?
+            .into_iter()
+            .filter(|identity| {
+                identity.urn == id || identity.metadata.handle == id || identity.peer_id == id
+            })
+            .collect()
+    }
+
     #[fehler::throws]
     pub(super) fn run(self, context: &Context) {
-        match self {
+        match &self {
             Self::List => {
-                for identity in context.api.identities().list()? {
-                    println!(
-                        "{} {}: {}",
-                        identity.avatar_fallback.emoji, identity.metadata.handle, identity.urn
-                    );
-                }
+                self.print_identities_list(&context.api.identities().list()?);
             }
 
-            Self::Get { urn } => {
-                if let Some(identity) = context.api.identities().get(&urn)? {
-                    println!("{:#?}", identity);
-                } else {
-                    println!("Identity not found");
+            Self::Get { id } => match self.find_matching_identities(context, id)?.as_slice() {
+                [] => {
+                    println!("no identity matching '{}' found", id);
                 }
-            }
+                [identity] => {
+                    println!("{:#?}", identity);
+                }
+                identities => {
+                    println!(
+                        "\
+                            multiple identities matched '{}', \
+                            please use a urn/peer_id to guarantee uniqueness:
+                        ",
+                        id
+                    );
+                    self.print_identities_list(identities);
+                }
+            },
 
             Self::This => {
                 let identity = context.api.session().get()?.identity;
@@ -72,7 +102,7 @@ impl std::fmt::Display for Cmd {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) {
         match self {
             Self::List => write!(f, "list")?,
-            Self::Get { urn } => write!(f, "get {:?}", urn)?,
+            Self::Get { id } => write!(f, "get {:?}", id)?,
             Self::This => write!(f, "self")?,
         }
     }
