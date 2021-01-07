@@ -110,17 +110,19 @@ impl App {
     #[fehler::throws]
     #[tracing::instrument(fields(%self))]
     crate fn run(self) {
-        let api = Api::new(self.base_url)?;
-
-        let authed = if let Some(auth_token) = auth_token::load().ok_or_debug() {
-            api.set_token(auth_token)?
+        let api = if let Some(auth_token) = auth_token::load().ok_or_debug() {
+            if let Some(api) = Api::with_token(self.base_url.clone(), auth_token)? {
+                api
+            } else {
+                let (api, auth_token) = Api::with_login(self.base_url, get_passphrase()?)?;
+                auth_token::store(auth_token).ok_or_debug();
+                api
+            }
         } else {
-            false
+            let (api, auth_token) = Api::with_login(self.base_url, get_passphrase()?)?;
+            auth_token::store(auth_token).ok_or_debug();
+            api
         };
-
-        if !authed {
-            auth_token::store(api.login(get_passphrase()?)?).ok_or_debug();
-        }
 
         self.cmd.with(Context::new(api, std::io::stdout())).run()?;
     }

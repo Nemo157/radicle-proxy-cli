@@ -453,15 +453,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "qstring"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d464fae65fff2680baf48019211ce37aaec0c78e9264c84a3e484717f965104e"
-dependencies = [
- "percent-encoding",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -476,6 +467,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "cookie",
+ "cookie_store",
  "fehler",
  "keyutils",
  "rpassword",
@@ -884,9 +877,9 @@ checksum = "ac20c07bcac4f505f1e4fbd2e55b54f6297a35a27538f107cb3d4254b4514146"
 
 [[package]]
 name = "ureq"
-version = "1.5.4"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "294b85ef5dbc3670a72e82a89971608a1fcc4ed5c7c5a2895230d31a95f0569b"
+checksum = "e562326b32e3766fee6a4890b62489b4b095e94ac07232cfea631668002c19d7"
 dependencies = [
  "base64",
  "chunked_transfer",
@@ -894,7 +887,6 @@ dependencies = [
  "cookie_store",
  "log",
  "once_cell",
- "qstring",
  "serde",
  "serde_json",
  "url",

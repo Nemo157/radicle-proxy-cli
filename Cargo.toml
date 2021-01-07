@@ -14,6 +14,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { version = "1.0.34", features = ["std"], default-features = false }
 clap = { version = "3.0.0-beta.2", features = ["std", "color", "suggestions", "derive"], default-features = false }
+cookie = { version = "0.14.3", default-features = false }
+cookie_store = { version = "0.12.0", default-features = false }
 fehler = { version = "1.0.0", default-features = false }
 rpassword = { version = "5.0.0", default-features = false }
 secrecy = { version = "0.7.0", features = ["alloc", "serde"], default-features = false }
@@ -22,7 +24,7 @@ serde_json = { version = "1.0.60", default-features = false }
 thiserror = { version = "1.0.22", default-features = false }
 tracing = { version = "0.1.22", default-features = false }
 tracing-subscriber = { version = "0.2.15", features = ["env-filter", "fmt", "ansi"], default-features = false }
-ureq = { version = "1.5.2", features = ["json", "cookies"], default-features = false }
+ureq = { version = "2.0.0", features = ["json", "cookies"], default-features = false }
 url = { version = "2.2.0", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]

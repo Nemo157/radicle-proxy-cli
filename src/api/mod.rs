@@ -20,7 +20,9 @@ crate enum Error {
     SerializationFailure(#[from] serde_json::Error),
 
     #[error(transparent)]
-    UnknownUreq(#[from] ureq::Error),
+    // This is actually ureq::Transport, but that's !Error
+    // https://github.com/algesten/ureq/issues/294
+    UreqTransport(#[from] Box<ureq::Error>),
 
     #[error(transparent)]
     UnknownIo(#[from] std::io::Error),
@@ -33,22 +35,16 @@ crate struct Api {
 
 impl Api {
     #[fehler::throws(anyhow::Error)]
-    crate fn new(base: Url) -> Self {
-        Self {
-            agent: Agent::new(base)?,
-        }
-    }
-
-    #[fehler::throws(anyhow::Error)]
     /// Sets the current auth token, then returns whether it's valid
-    crate fn set_token(&self, auth_token: Secret<String>) -> bool {
-        self.agent.set_token(auth_token)?
+    crate fn with_token(base: Url, auth_token: Secret<String>) -> Option<Self> {
+        Agent::with_token(base, auth_token)?.map(|agent| Self { agent })
     }
 
     #[fehler::throws(anyhow::Error)]
     /// Logs in, then returns the new auth token
-    crate fn login(&self, passphrase: Secret<String>) -> Secret<String> {
-        self.agent.login(passphrase)?
+    crate fn with_login(base: Url, passphrase: Secret<String>) -> (Self, Secret<String>) {
+        let (agent, auth_token) = Agent::with_login(base, passphrase)?;
+        (Self { agent }, auth_token)
     }
 
     crate fn identities(&self) -> identities::Api<'_> {

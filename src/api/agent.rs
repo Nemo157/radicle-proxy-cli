@@ -42,45 +42,40 @@ impl std::fmt::Debug for Agent {
 impl Agent {
     #[fehler::throws(anyhow::Error)]
     #[tracing::instrument(fields(%base))]
-    pub(super) fn new(base: Url) -> Self {
-        let agent = ureq::agent();
+    pub(super) fn with_token(base: Url, auth_token: Secret<String>) -> Option<Self> {
         anyhow::ensure!(
             !base.cannot_be_a_base(),
             "Invalid base url, must be able to append components"
         );
-        let agent = Secret::new(UreqAgent(agent));
-        Self { base, agent }
-    }
-
-    #[fehler::throws(anyhow::Error)]
-    #[tracing::instrument]
-    /// Sets the current auth token, then returns whether it's valid
-    pub(super) fn set_token(&self, auth_token: Secret<String>) -> bool {
-        let domain = self
-            .base
+        let domain = base
             .domain()
             .context("Invalid base url, must contain a domain to attach cookie to")?
             .to_owned();
-        self.agent.expose_secret().set_cookie(
-            ureq::Cookie::build("auth-token", auth_token.expose_secret().to_owned())
+        let mut cookies = cookie_store::CookieStore::load_json(std::io::Cursor::new("")).unwrap();
+        cookies.insert_raw(
+            &cookie::Cookie::build("auth-token", auth_token.expose_secret().to_owned())
                 .domain(domain)
                 .path("/")
                 .finish(),
-        );
-        match self.get(["v1", "identities"]) {
+            &base,
+        )?;
+        let agent = Self {
+            base,
+            agent: Secret::new(UreqAgent(ureq::builder().cookie_store(cookies).build())),
+        };
+        match agent.get(["v1", "identities"]) {
             Ok(t) => {
                 let _: ureq::SerdeValue = t;
-                true
+                Some(agent)
             }
-            Err(crate::api::Error::Api { code, .. }) if code == 403 => false,
+            Err(crate::api::Error::Api { code, .. }) if code == 403 => None,
             Err(err) => fehler::throw!(err),
         }
     }
 
     #[fehler::throws(anyhow::Error)]
-    #[tracing::instrument]
-    /// Logs in, then returns the new auth token
-    pub(super) fn login(&self, passphrase: Secret<String>) -> Secret<String> {
+    #[tracing::instrument(fields(%base))]
+    pub(super) fn with_login(base: Url, passphrase: Secret<String>) -> (Self, Secret<String>) {
         #[derive(Debug, serde::Serialize)]
         #[serde(rename_all = "camelCase")]
         struct LoginData {
@@ -99,13 +94,30 @@ impl Agent {
             passphrase.expose_secret().serialize(serializer)
         }
 
+        anyhow::ensure!(
+            !base.cannot_be_a_base(),
+            "Invalid base url, must be able to append components"
+        );
+
+        let domain = base
+            .domain()
+            .context("Invalid base url, must contain a domain to attach cookie to")?
+            .to_owned();
+
+        let agent = Self {
+            base,
+            agent: Secret::new(UreqAgent(ureq::agent())),
+        };
+
         let crate::api::Nothing =
-            self.post(["v1", "keystore", "unseal"], LoginData { passphrase })?;
+            agent.post(["v1", "keystore", "unseal"], LoginData { passphrase })?;
 
         let auth_token = Secret::new(
-            self.agent
+            agent
+                .agent
                 .expose_secret()
-                .cookie("auth-token")
+                .cookie_store()
+                .get(&domain, "/", "auth-token")
                 .context("Missing auth token after login")?
                 .value()
                 .to_owned(),
@@ -114,7 +126,7 @@ impl Agent {
         // The web server resets itself after login...
         std::thread::sleep(std::time::Duration::from_millis(100));
 
-        auth_token
+        (agent, auth_token)
     }
 
     #[fehler::throws(crate::api::Error)]
@@ -126,7 +138,7 @@ impl Agent {
         let url = path.append_to(self.base.clone());
         let response = self.agent.expose_secret().get(&url.to_string()).call();
         tracing::debug!(%url, ?response);
-        let value = response.check_error()?.into_json_deserialize()?;
+        let value = response.check_error()?.into_json()?;
         tracing::trace!(?value);
         value
     }
@@ -140,10 +152,10 @@ impl Agent {
         let url = path.append_to(self.base.clone());
         let response = self.agent.expose_secret().get(&url.to_string()).call();
         tracing::debug!(%url, ?response);
-        let value = if response.status() == 404 {
+        let value = if let Err(ureq::Error::Status(404, _)) = response {
             None
         } else {
-            Some(response.check_error()?.into_json_deserialize()?)
+            Some(response.check_error()?.into_json()?)
         };
         tracing::trace!(?value);
         value
@@ -163,7 +175,7 @@ impl Agent {
             .post(&url.to_string())
             .send_json(ureq::serde_to_value(data)?);
         tracing::debug!(%url, ?response);
-        let value = response.check_error()?.into_json_deserialize()?;
+        let value = response.check_error()?.into_json()?;
         tracing::trace!(?value);
         value
     }
@@ -212,20 +224,21 @@ impl<T: UrlComponents, U: UrlComponents> UrlComponents for (T, U) {
 
 trait ApiResponseExt: Sized {
     #[fehler::throws(crate::api::Error)]
-    fn check_error(self) -> Self;
+    fn check_error(self) -> ureq::Response;
 }
 
-impl ApiResponseExt for ureq::Response {
+impl ApiResponseExt for Result<ureq::Response, ureq::Error> {
     #[fehler::throws(crate::api::Error)]
-    fn check_error(self) -> Self {
-        if self.error() {
-            if self.synthetic() {
-                fehler::throw!(self.into_synthetic_error().unwrap());
+    fn check_error(self) -> ureq::Response {
+        match self {
+            Ok(response) => response,
+            Err(ureq::Error::Status(code, response)) => {
+                let ErrorResponse { message: msg, .. } = response.into_json()?;
+                fehler::throw!(crate::api::Error::Api { msg, code });
             }
-            let code = self.status();
-            let ErrorResponse { message: msg, .. } = self.into_json_deserialize()?;
-            fehler::throw!(crate::api::Error::Api { msg, code });
+            Err(ureq::Error::Transport(transport)) => {
+                fehler::throw!(Box::new(ureq::Error::Transport(transport)))
+            }
         }
-        self
     }
 }
