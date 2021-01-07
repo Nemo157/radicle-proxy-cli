@@ -75,8 +75,11 @@ mod auth_token {
     pub(super) fn store(auth_token: Secret<String>) {
         // SAFETY: Not actually unsafe: https://github.com/mathstuf/rust-keyutils/issues/56
         let mut session_keyring = unsafe { Keyring::new(SpecialKeyring::UserSession.serial()) };
-        let mut key = session_keyring
+        let _ = session_keyring
             .add_key::<User, _, _>(AUTH_TOKEN_KEY, auth_token.expose_secret().as_bytes())?;
+        // Need to attach the key to the current process before we can set the timeout
+        let mut key = session_keyring
+            .search_for_key::<User, _, _>(AUTH_TOKEN_KEY, SpecialKeyring::Process)?;
         key.set_timeout(AUTH_TOKEN_EXPIRY)?;
     }
 }
